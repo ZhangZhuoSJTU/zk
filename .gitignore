@@ -48,3 +48,11 @@ venv.bak/
 pyrightconfig.json
 
 docs/version.txt
+
+# ProgramBench course-competition artifacts
+executable
+.programbench/venv/
+.programbench/gitconfig
+.programbench/home/
+.programbench/tests/
+.programbench/run/
