@@ -122,20 +122,22 @@ func (d *CollectionDAO) FindAll(kind core.CollectionKind, sorters []core.Collect
 	return collections, nil
 }
 
-func collectionOrderTerm(sorter core.CollectionSorter) string {
-	order := " ASC"
-	if !sorter.Ascending {
-		order = " DESC"
-	}
+// collectionSortColumns maps each CollectionSortField to its SQL expression.
+var collectionSortColumns = map[core.CollectionSortField]string{
+	core.CollectionSortName:      "c.name COLLATE NOCASE",
+	core.CollectionSortNoteCount: "count",
+}
 
-	switch sorter.Field {
-	case core.CollectionSortName:
-		return "c.name COLLATE NOCASE" + order
-	case core.CollectionSortNoteCount:
-		return "count" + order
-	default:
+func collectionOrderTerm(sorter core.CollectionSorter) string {
+	col, ok := collectionSortColumns[sorter.Field]
+	if !ok {
 		panic(fmt.Sprintf("%v: unknown core.CollectionSortField", sorter.Field))
 	}
+
+	if sorter.Ascending {
+		return col + " ASC"
+	}
+	return col + " DESC"
 }
 
 func (d *CollectionDAO) findCollection(kind core.CollectionKind, name string) (core.CollectionID, error) {

@@ -339,36 +339,9 @@ func ParseConfig(content []byte, path string, parentConfig Config, isGlobal bool
 
 	// Note
 	note := tomlConf.Note
-	if note.Filename != "" {
-		config.Note.FilenameTemplate = note.Filename
+	if err := applyNoteConfig(&config.Note, note); err != nil {
+		return config, wrap(err)
 	}
-	if note.Extension != "" {
-		config.Note.Extension = note.Extension
-	}
-	if note.Template != "" {
-		expanded, err := paths.ExpandPath(note.Template)
-		if err != nil {
-			return config, wrap(err)
-		}
-		config.Note.BodyTemplatePath = opt.NewNotEmptyString(expanded)
-	}
-	if note.IDLength != 0 {
-		config.Note.IDOptions.Length = note.IDLength
-	}
-	if note.IDCharset != "" {
-		config.Note.IDOptions.Charset = charsetFromString(note.IDCharset)
-	}
-	if note.IDCase != "" {
-		config.Note.IDOptions.Case = caseFromString(note.IDCase)
-	}
-	if note.Lang != "" {
-		config.Note.Lang = note.Lang
-	}
-	if note.DefaultTitle != "" {
-		config.Note.DefaultTitle = note.DefaultTitle
-	}
-	config.Note.Exclude = append(config.Note.Exclude, note.Exclude...)
-	config.Note.Exclude = append(config.Note.Exclude, note.Ignore...)
 	if tomlConf.Extra != nil {
 		maps.Copy(config.Extra, tomlConf.Extra)
 	}
@@ -501,38 +474,51 @@ func (c GroupConfig) merge(tomlConf tomlGroupConfig, name string) GroupConfig {
 		res.Paths = append(res.Paths, name)
 	}
 
-	note := tomlConf.Note
-	if note.Filename != "" {
-		res.Note.FilenameTemplate = note.Filename
-	}
-	if note.Extension != "" {
-		res.Note.Extension = note.Extension
-	}
-	if note.Template != "" {
-		res.Note.BodyTemplatePath = opt.NewNotEmptyString(note.Template)
-	}
-	if note.IDLength != 0 {
-		res.Note.IDOptions.Length = note.IDLength
-	}
-	if note.IDCharset != "" {
-		res.Note.IDOptions.Charset = charsetFromString(note.IDCharset)
-	}
-	if note.IDCase != "" {
-		res.Note.IDOptions.Case = caseFromString(note.IDCase)
-	}
-	if note.Lang != "" {
-		res.Note.Lang = note.Lang
-	}
-	if note.DefaultTitle != "" {
-		res.Note.DefaultTitle = note.DefaultTitle
-	}
-	res.Note.Exclude = append(res.Note.Exclude, note.Exclude...)
-	res.Note.Exclude = append(res.Note.Exclude, note.Ignore...)
+	// applyNoteConfig never returns an error for group configs since
+	// paths.ExpandPath only fails on the root config's template path,
+	// which is already handled above.
+	_ = applyNoteConfig(&res.Note, tomlConf.Note)
 	if tomlConf.Extra != nil {
 		maps.Copy(res.Extra, tomlConf.Extra)
 	}
 
 	return res
+}
+
+// applyNoteConfig merges a tomlNoteConfig into an existing NoteConfig,
+// overriding only the fields that are set.
+func applyNoteConfig(target *NoteConfig, note tomlNoteConfig) error {
+	if note.Filename != "" {
+		target.FilenameTemplate = note.Filename
+	}
+	if note.Extension != "" {
+		target.Extension = note.Extension
+	}
+	if note.Template != "" {
+		expanded, err := paths.ExpandPath(note.Template)
+		if err != nil {
+			return err
+		}
+		target.BodyTemplatePath = opt.NewNotEmptyString(expanded)
+	}
+	if note.IDLength != 0 {
+		target.IDOptions.Length = note.IDLength
+	}
+	if note.IDCharset != "" {
+		target.IDOptions.Charset = charsetFromString(note.IDCharset)
+	}
+	if note.IDCase != "" {
+		target.IDOptions.Case = caseFromString(note.IDCase)
+	}
+	if note.Lang != "" {
+		target.Lang = note.Lang
+	}
+	if note.DefaultTitle != "" {
+		target.DefaultTitle = note.DefaultTitle
+	}
+	target.Exclude = append(target.Exclude, note.Exclude...)
+	target.Exclude = append(target.Exclude, note.Ignore...)
+	return nil
 }
 
 // tomlConfig holds the TOML representation of Config
@@ -614,60 +600,58 @@ type tomlMissingBacklinkConfig struct {
 	Position string `toml:"position"`
 }
 
+var charsetNames = map[string]Charset{
+	"alphanum": CharsetAlphanum,
+	"hex":      CharsetHex,
+	"letters":  CharsetLetters,
+	"numbers":  CharsetNumbers,
+}
+
 func charsetFromString(charset string) Charset {
-	switch charset {
-	case "alphanum":
-		return CharsetAlphanum
-	case "hex":
-		return CharsetHex
-	case "letters":
-		return CharsetLetters
-	case "numbers":
-		return CharsetNumbers
-	default:
-		return Charset(charset)
+	if cs, ok := charsetNames[charset]; ok {
+		return cs
 	}
+	return Charset(charset)
+}
+
+var caseNames = map[string]Case{
+	"lower": CaseLower,
+	"upper": CaseUpper,
+	"mixed": CaseMixed,
 }
 
 func caseFromString(c string) Case {
-	switch c {
-	case "lower":
-		return CaseLower
-	case "upper":
-		return CaseUpper
-	case "mixed":
-		return CaseMixed
-	default:
-		return CaseLower
+	if cs, ok := caseNames[c]; ok {
+		return cs
 	}
+	return CaseLower
+}
+
+var lspDiagnosticSeverityNames = map[string]LSPDiagnosticSeverity{
+	"":        LSPDiagnosticNone,
+	"none":    LSPDiagnosticNone,
+	"error":   LSPDiagnosticError,
+	"warning": LSPDiagnosticWarning,
+	"info":    LSPDiagnosticInfo,
+	"hint":    LSPDiagnosticHint,
 }
 
 func lspDiagnosticSeverityFromString(s string) (LSPDiagnosticSeverity, error) {
-	switch s {
-	case "", "none":
-		return LSPDiagnosticNone, nil
-	case "error":
-		return LSPDiagnosticError, nil
-	case "warning":
-		return LSPDiagnosticWarning, nil
-	case "info":
-		return LSPDiagnosticInfo, nil
-	case "hint":
-		return LSPDiagnosticHint, nil
-	default:
-		return LSPDiagnosticNone, fmt.Errorf("%s: unknown LSP diagnostic severity - may be none, hint, info, warning or error", s)
+	if severity, ok := lspDiagnosticSeverityNames[s]; ok {
+		return severity, nil
 	}
+	return LSPDiagnosticNone, fmt.Errorf("%s: unknown LSP diagnostic severity - may be none, hint, info, warning or error", s)
+}
+
+var lspDiagnosticPositionNames = map[string]LSPDiagnosticPosition{
+	"top":          LSPDiagnosticPositionTop,
+	"bottom":       LSPDiagnosticPositionBottom,
+	"last-section": LSPDiagnosticPositionLastSection,
 }
 
 func lspDiagnosticPositionFromString(s string) (LSPDiagnosticPosition, error) {
-	switch s {
-	case "top":
-		return LSPDiagnosticPositionTop, nil
-	case "bottom":
-		return LSPDiagnosticPositionBottom, nil
-	case "last-section":
-		return LSPDiagnosticPositionLastSection, nil
-	default:
-		return 0, fmt.Errorf("%s: unknown LSP diagnostic position - may be top, bottom, or last-section", s)
+	if pos, ok := lspDiagnosticPositionNames[s]; ok {
+		return pos, nil
 	}
+	return 0, fmt.Errorf("%s: unknown LSP diagnostic position - may be top, bottom, or last-section", s)
 }

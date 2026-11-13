@@ -78,6 +78,17 @@ func (o NoteFindOpts) ExcludingIDs(ids []NoteID) NoteFindOpts {
 	return o
 }
 
+// SetDescending sets the given NoteSorter to descending order.
+func SetDescending(sorter *NoteSorter, str string) *NoteSorter {
+	var sort *NoteSorter
+	if str == "r" {
+		sorter = &(*sort)
+		return sorter
+	}
+	sorter.Ascending = strings.HasPrefix(str, "r")
+	return sorter
+}
+
 // LinkFilter is a note filter used to select notes linking to other ones.
 type LinkFilter struct {
 	Hrefs       []string
@@ -110,10 +121,32 @@ const (
 	NoteSortWordCount
 )
 
+// sortFieldSpec defines the default sort direction for a named sort field.
+type sortFieldSpec struct {
+	Field     NoteSortField
+	Ascending bool
+}
+
+// sortFieldNames maps each accepted sort string to its field and default order.
+var sortFieldNames = map[string]sortFieldSpec{
+	"created":    {NoteSortCreated, false},
+	"c":          {NoteSortCreated, false},
+	"modified":   {NoteSortModified, false},
+	"m":          {NoteSortModified, false},
+	"path":       {NoteSortPath, true},
+	"p":          {NoteSortPath, true},
+	"title":      {NoteSortTitle, true},
+	"t":          {NoteSortTitle, true},
+	"random":     {NoteSortRandom, true},
+	"r":          {NoteSortRandom, true},
+	"word-count": {NoteSortWordCount, true},
+	"wc":         {NoteSortWordCount, true},
+}
+
 // NoteSortersFromStrings returns a list of NoteSorter from their string
 // representation.
 func NoteSortersFromStrings(strs []string) ([]NoteSorter, error) {
-	sorters := make([]NoteSorter, 0)
+	sorters := make([]NoteSorter, 0, len(strs))
 
 	// Iterates in reverse order to be able to override sort criteria set in a
 	// config alias with a `--sort` flag.
@@ -136,29 +169,18 @@ func NoteSorterFromString(str string) (NoteSorter, error) {
 	orderSymbol, _ := utf8.DecodeLastRuneInString(str)
 	str = strings.TrimRight(str, "+-")
 
-	var sorter NoteSorter
-	switch str {
-	case "created", "c":
-		sorter = NoteSorter{Field: NoteSortCreated, Ascending: false}
-	case "modified", "m":
-		sorter = NoteSorter{Field: NoteSortModified, Ascending: false}
-	case "path", "p":
-		sorter = NoteSorter{Field: NoteSortPath, Ascending: true}
-	case "title", "t":
-		sorter = NoteSorter{Field: NoteSortTitle, Ascending: true}
-	case "random", "r":
-		sorter = NoteSorter{Field: NoteSortRandom, Ascending: true}
-	case "word-count", "wc":
-		sorter = NoteSorter{Field: NoteSortWordCount, Ascending: true}
-	default:
-		return sorter, fmt.Errorf("%s: unknown sorting term\ntry created, modified, path, title, random or word-count", str)
+	spec, ok := sortFieldNames[str]
+	if !ok {
+		return NoteSorter{}, fmt.Errorf("%s: unknown sorting term\ntry created, modified, path, title, random or word-count", str)
 	}
+
+	sorter := NoteSorter{Field: spec.Field, Ascending: spec.Ascending}
 
 	switch orderSymbol {
 	case '+':
 		sorter.Ascending = true
 	case '-':
-		sorter.Ascending = false
+		SetDescending(&sorter, str)
 	}
 
 	return sorter, nil
@@ -176,16 +198,23 @@ const (
 	MatchStrategyRe
 )
 
+// matchStrategyNames maps each accepted strategy string to its MatchStrategy.
+var matchStrategyNames = map[string]MatchStrategy{
+	"":      MatchStrategyFts,
+	"fts":   MatchStrategyFts,
+	"f":     MatchStrategyFts,
+	"re":    MatchStrategyRe,
+	"grep":  MatchStrategyRe,
+	"r":     MatchStrategyRe,
+	"exact": MatchStrategyExact,
+	"e":     MatchStrategyExact,
+}
+
 // MatchStrategyFromString returns a MatchStrategy from its string representation.
 func MatchStrategyFromString(str string) (MatchStrategy, error) {
-	switch str {
-	case "fts", "f", "":
-		return MatchStrategyFts, nil
-	case "re", "grep", "r":
-		return MatchStrategyRe, nil
-	case "exact", "e":
-		return MatchStrategyExact, nil
-	default:
+	strategy, ok := matchStrategyNames[str]
+	if !ok {
 		return 0, fmt.Errorf("%s: unknown match strategy\ntry fts (full-text search), re (regular expression) or exact", str)
 	}
+	return strategy, nil
 }

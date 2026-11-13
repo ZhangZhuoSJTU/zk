@@ -869,28 +869,29 @@ func (d *NoteDAO) scanNote(row RowScanner) (*core.ContextualNote, error) {
 	}
 }
 
+// sortFieldColumns maps each NoteSortField to its SQL column expression.
+var sortFieldColumns = map[core.NoteSortField]string{
+	core.NoteSortCreated:   "n.created",
+	core.NoteSortModified:  "n.modified",
+	core.NoteSortPath:      "n.path",
+	core.NoteSortTitle:     "n.title",
+	core.NoteSortWordCount: "n.word_count",
+}
+
 func orderTerm(sorter core.NoteSorter) string {
-	order := " ASC"
-	if !sorter.Ascending {
-		order = " DESC"
+	if sorter.Field == core.NoteSortRandom {
+		return "RANDOM()"
 	}
 
-	switch sorter.Field {
-	case core.NoteSortCreated:
-		return "n.created" + order
-	case core.NoteSortModified:
-		return "n.modified" + order
-	case core.NoteSortPath:
-		return "n.path" + order
-	case core.NoteSortRandom:
-		return "RANDOM()"
-	case core.NoteSortTitle:
-		return "n.title" + order
-	case core.NoteSortWordCount:
-		return "n.word_count" + order
-	default:
+	col, ok := sortFieldColumns[sorter.Field]
+	if !ok {
 		panic(fmt.Sprintf("%v: unknown core.NoteSortField", sorter.Field))
 	}
+
+	if sorter.Ascending {
+		return col + " ASC"
+	}
+	return col + " DESC"
 }
 
 // buildMentionQuery creates an FTS5 predicate to match the given note's title
