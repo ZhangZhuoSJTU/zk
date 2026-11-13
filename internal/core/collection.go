@@ -77,10 +77,24 @@ const (
 	CollectionSortNoteCount
 )
 
+// collectionSortSpec defines the default sort direction for a named collection sort field.
+type collectionSortSpec struct {
+	Field     CollectionSortField
+	Ascending bool
+}
+
+// collectionSortNames maps each accepted sort string to its field and default order.
+var collectionSortNames = map[string]collectionSortSpec{
+	"name":       {CollectionSortName, true},
+	"n":          {CollectionSortName, true},
+	"note-count": {CollectionSortNoteCount, false},
+	"nc":         {CollectionSortNoteCount, false},
+}
+
 // CollectionSortersFromStrings returns a list of CollectionSorter from their string
 // representation.
 func CollectionSortersFromStrings(strs []string) ([]CollectionSorter, error) {
-	sorters := make([]CollectionSorter, 0)
+	sorters := make([]CollectionSorter, 0, len(strs))
 
 	// Iterates in reverse order to be able to override sort criteria set in a
 	// config alias with a `--sort` flag.
@@ -103,15 +117,12 @@ func CollectionSorterFromString(str string) (CollectionSorter, error) {
 	orderSymbol, _ := utf8.DecodeLastRuneInString(str)
 	str = strings.TrimRight(str, "+-")
 
-	var sorter CollectionSorter
-	switch str {
-	case "name", "n":
-		sorter = CollectionSorter{Field: CollectionSortName, Ascending: true}
-	case "note-count", "nc":
-		sorter = CollectionSorter{Field: CollectionSortNoteCount, Ascending: false}
-	default:
-		return sorter, fmt.Errorf("%s: unknown sorting term\ntry name or note-count", str)
+	spec, ok := collectionSortNames[str]
+	if !ok {
+		return CollectionSorter{}, fmt.Errorf("%s: unknown sorting term\ntry name or note-count", str)
 	}
+
+	sorter := CollectionSorter{Field: spec.Field, Ascending: spec.Ascending}
 
 	switch orderSymbol {
 	case '+':

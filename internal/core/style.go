@@ -5,19 +5,17 @@ import "fmt"
 // Style is a key representing a single styling rule.
 type Style string
 
-// Predefined styling rules.
+// Semantic styling rules.
 var (
-	// Title of a note.
-	StyleTitle = Style("title")
-	// Path to notebook file.
-	StylePath = Style("path")
-	// Searched for term in a note.
-	StyleTerm = Style("term")
-	// Element to emphasize, for example the short version of a prompt response: [y]es.
-	StyleEmphasis = Style("emphasis")
-	// Element to understate, for example the content of the note in fzf.
-	StyleUnderstate = Style("understate")
+	StyleTitle      = Style("title")     // Title of a note.
+	StylePath       = Style("path")      // Path to notebook file.
+	StyleTerm       = Style("term")      // Searched for term in a note.
+	StyleEmphasis   = Style("emphasis")  // Element to emphasize, e.g. [y]es.
+	StyleUnderstate = Style("understate") // Element to understate, e.g. note content in fzf.
+)
 
+// Text decoration styles.
+var (
 	StyleBold          = Style("bold")
 	StyleItalic        = Style("italic")
 	StyleFaint         = Style("faint")
@@ -26,43 +24,55 @@ var (
 	StyleBlink         = Style("blink")
 	StyleReverse       = Style("reverse")
 	StyleHidden        = Style("hidden")
-
-	StyleBlack   = Style("black")
-	StyleRed     = Style("red")
-	StyleGreen   = Style("green")
-	StyleYellow  = Style("yellow")
-	StyleBlue    = Style("blue")
-	StyleMagenta = Style("magenta")
-	StyleCyan    = Style("cyan")
-	StyleWhite   = Style("white")
-
-	StyleBlackBg   = Style("black-bg")
-	StyleRedBg     = Style("red-bg")
-	StyleGreenBg   = Style("green-bg")
-	StyleYellowBg  = Style("yellow-bg")
-	StyleBlueBg    = Style("blue-bg")
-	StyleMagentaBg = Style("magenta-bg")
-	StyleCyanBg    = Style("cyan-bg")
-	StyleWhiteBg   = Style("white-bg")
-
-	StyleBrightBlack   = Style("bright-black")
-	StyleBrightRed     = Style("bright-red")
-	StyleBrightGreen   = Style("bright-green")
-	StyleBrightYellow  = Style("bright-yellow")
-	StyleBrightBlue    = Style("bright-blue")
-	StyleBrightMagenta = Style("bright-magenta")
-	StyleBrightCyan    = Style("bright-cyan")
-	StyleBrightWhite   = Style("bright-white")
-
-	StyleBrightBlackBg   = Style("bright-black-bg")
-	StyleBrightRedBg     = Style("bright-red-bg")
-	StyleBrightGreenBg   = Style("bright-green-bg")
-	StyleBrightYellowBg  = Style("bright-yellow-bg")
-	StyleBrightBlueBg    = Style("bright-blue-bg")
-	StyleBrightMagentaBg = Style("bright-magenta-bg")
-	StyleBrightCyanBg    = Style("bright-cyan-bg")
-	StyleBrightWhiteBg   = Style("bright-white-bg")
 )
+
+// baseColors lists the color names used to generate foreground, background,
+// and bright variant styles.
+var baseColors = []string{
+	"black", "red", "green", "yellow",
+	"blue", "magenta", "cyan", "white",
+}
+
+// Color styles — generated from baseColors at init time.
+var (
+	StyleBlack, StyleRed, StyleGreen, StyleYellow     Style
+	StyleBlue, StyleMagenta, StyleCyan, StyleWhite    Style
+
+	StyleBlackBg, StyleRedBg, StyleGreenBg, StyleYellowBg     Style
+	StyleBlueBg, StyleMagentaBg, StyleCyanBg, StyleWhiteBg    Style
+
+	StyleBrightBlack, StyleBrightRed, StyleBrightGreen, StyleBrightYellow     Style
+	StyleBrightBlue, StyleBrightMagenta, StyleBrightCyan, StyleBrightWhite    Style
+
+	StyleBrightBlackBg, StyleBrightRedBg, StyleBrightGreenBg, StyleBrightYellowBg     Style
+	StyleBrightBlueBg, StyleBrightMagentaBg, StyleBrightCyanBg, StyleBrightWhiteBg    Style
+)
+
+func init() {
+	colorVars := []*Style{
+		&StyleBlack, &StyleRed, &StyleGreen, &StyleYellow,
+		&StyleBlue, &StyleMagenta, &StyleCyan, &StyleWhite,
+	}
+	bgVars := []*Style{
+		&StyleBlackBg, &StyleRedBg, &StyleGreenBg, &StyleYellowBg,
+		&StyleBlueBg, &StyleMagentaBg, &StyleCyanBg, &StyleWhiteBg,
+	}
+	brightVars := []*Style{
+		&StyleBrightBlack, &StyleBrightRed, &StyleBrightGreen, &StyleBrightYellow,
+		&StyleBrightBlue, &StyleBrightMagenta, &StyleBrightCyan, &StyleBrightWhite,
+	}
+	brightBgVars := []*Style{
+		&StyleBrightBlackBg, &StyleBrightRedBg, &StyleBrightGreenBg, &StyleBrightYellowBg,
+		&StyleBrightBlueBg, &StyleBrightMagentaBg, &StyleBrightCyanBg, &StyleBrightWhiteBg,
+	}
+
+	for i, name := range baseColors {
+		*colorVars[i] = Style(name)
+		*bgVars[i] = Style(name + "-bg")
+		*brightVars[i] = Style("bright-" + name)
+		*brightBgVars[i] = Style("bright-" + name + "-bg")
+	}
+}
 
 // Styler stylizes text according to predefined styling rules.
 //
